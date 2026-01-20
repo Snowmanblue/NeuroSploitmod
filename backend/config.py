@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # LLM Settings
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    MISTRAL_API_KEY: Optional[str] = os.getenv("MISTRAL_API_KEY")
     DEFAULT_LLM_PROVIDER: str = "claude"
     DEFAULT_LLM_MODEL: str = "claude-sonnet-4-20250514"
 
