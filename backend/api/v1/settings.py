@@ -18,6 +18,7 @@ class SettingsUpdate(BaseModel):
     llm_provider: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    mistral_api_key: Optional[str] = None
     max_concurrent_scans: Optional[int] = None
     aggressive_mode: Optional[bool] = None
     default_scan_type: Optional[str] = None
@@ -29,6 +30,7 @@ class SettingsResponse(BaseModel):
     llm_provider: str = "claude"
     has_anthropic_key: bool = False
     has_openai_key: bool = False
+    has_mistral_key: bool = False
     max_concurrent_scans: int = 3
     aggressive_mode: bool = False
     default_scan_type: str = "full"
@@ -40,6 +42,7 @@ _settings = {
     "llm_provider": "claude",
     "anthropic_api_key": "",
     "openai_api_key": "",
+    "mistral_api_key": "",
     "max_concurrent_scans": 3,
     "aggressive_mode": False,
     "default_scan_type": "full",
@@ -54,6 +57,7 @@ async def get_settings():
         llm_provider=_settings["llm_provider"],
         has_anthropic_key=bool(_settings["anthropic_api_key"]),
         has_openai_key=bool(_settings["openai_api_key"]),
+        has_mistral_key=bool(_settings["mistral_api_key"]),
         max_concurrent_scans=_settings["max_concurrent_scans"],
         aggressive_mode=_settings["aggressive_mode"],
         default_scan_type=_settings["default_scan_type"],
@@ -79,6 +83,12 @@ async def update_settings(settings_data: SettingsUpdate):
         import os
         if settings_data.openai_api_key:
             os.environ["OPENAI_API_KEY"] = settings_data.openai_api_key
+
+    if settings_data.mistral_api_key is not None:
+        _settings["mistral_api_key"] = settings_data.mistral_api_key
+        import os
+        if settings_data.mistral_api_key:
+            os.environ["MISTRAL_API_KEY"] = settings_data.mistral_api_key
 
     if settings_data.max_concurrent_scans is not None:
         _settings["max_concurrent_scans"] = settings_data.max_concurrent_scans

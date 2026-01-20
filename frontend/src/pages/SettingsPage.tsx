@@ -8,6 +8,7 @@ interface Settings {
   llm_provider: string
   has_anthropic_key: boolean
   has_openai_key: boolean
+  has_mistral_key: boolean
   max_concurrent_scans: number
   aggressive_mode: boolean
   default_scan_type: string
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [dbStats, setDbStats] = useState<DbStats | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
+  const [mistralKey, setMistralKey] = useState('')
   const [llmProvider, setLlmProvider] = useState('claude')
   const [maxConcurrentScans, setMaxConcurrentScans] = useState('3')
   const [aggressiveMode, setAggressiveMode] = useState(false)
@@ -78,6 +80,7 @@ export default function SettingsPage() {
           llm_provider: llmProvider,
           anthropic_api_key: apiKey || undefined,
           openai_api_key: openaiKey || undefined,
+          mistral_api_key: mistralKey || undefined,
           max_concurrent_scans: parseInt(maxConcurrentScans),
           aggressive_mode: aggressiveMode
         })
@@ -88,6 +91,7 @@ export default function SettingsPage() {
         setSettings(data)
         setApiKey('')
         setOpenaiKey('')
+        setMistralKey('')
         setMessage({ type: 'success', text: 'Settings saved successfully!' })
       } else {
         setMessage({ type: 'error', text: 'Failed to save settings' })
@@ -140,13 +144,13 @@ export default function SettingsPage() {
               LLM Provider
             </label>
             <div className="flex gap-2">
-              {['claude', 'openai', 'ollama'].map((provider) => (
+              {['claude', 'openai', 'mistral', 'ollama'].map((provider) => (
                 <Button
                   key={provider}
                   variant={llmProvider === provider ? 'primary' : 'secondary'}
                   onClick={() => setLlmProvider(provider)}
                 >
-                  {provider.charAt(0).toUpperCase() + provider.slice(1)}
+                  {provider === 'openai' ? 'OpenAI' : provider.charAt(0).toUpperCase() + provider.slice(1)}
                 </Button>
               ))}
             </div>
@@ -171,6 +175,17 @@ export default function SettingsPage() {
               value={openaiKey}
               onChange={(e) => setOpenaiKey(e.target.value)}
               helperText={settings?.has_openai_key ? 'API key is configured. Enter a new key to update.' : 'Required for OpenAI-powered analysis'}
+            />
+          )}
+
+          {llmProvider === 'mistral' && (
+            <Input
+              label="Mistral API Key"
+              type="password"
+              placeholder={settings?.has_mistral_key ? '••••••••••••••••' : 'Mistral API Key'}
+              value={mistralKey}
+              onChange={(e) => setMistralKey(e.target.value)}
+              helperText={settings?.has_mistral_key ? 'API key is configured. Enter a new key to update.' : 'Required for Mistral-powered analysis'}
             />
           )}
         </div>

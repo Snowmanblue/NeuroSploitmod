@@ -44,12 +44,15 @@ async def get_llm_status():
 
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
     openai_key = os.getenv("OPENAI_API_KEY", "")
+    mistral_key = os.getenv("MISTRAL_API_KEY", "")
 
     # Check for placeholder values
     if anthropic_key in ["", "your-anthropic-api-key"]:
         anthropic_key = None
     if openai_key in ["", "your-openai-api-key"]:
         openai_key = None
+    if mistral_key in ["", "your-mistral-api-key", "${MISTRAL_API_KEY}"]:
+        mistral_key = None
 
     # Try to import libraries
     try:
@@ -73,6 +76,10 @@ async def get_llm_status():
         status = "ready"
         provider = "openai"
         message = "OpenAI API configured and ready"
+    elif mistral_key:
+        status = "ready"
+        provider = "mistral"
+        message = "Mistral AI API configured and ready"
     elif not anthropic_lib and not openai_lib:
         status = "error"
         provider = None
@@ -89,6 +96,7 @@ async def get_llm_status():
         "details": {
             "anthropic_key_set": bool(anthropic_key),
             "openai_key_set": bool(openai_key),
+            "mistral_key_set": bool(mistral_key),
             "anthropic_lib_installed": anthropic_lib,
             "openai_lib_installed": openai_lib
         }

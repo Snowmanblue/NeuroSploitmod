@@ -69,17 +69,16 @@ else
 
     # Start backend
     echo "Starting backend..."
-    cd backend
-    if [ ! -d "venv" ]; then
+    if [ ! -d "backend/venv" ]; then
+        cd backend
         python3 -m venv venv
         source venv/bin/activate
         pip install -r requirements.txt
-    else
-        source venv/bin/activate
+        cd ..
     fi
+    source backend/venv/bin/activate
     python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
     BACKEND_PID=$!
-    cd ..
 
     # Start frontend
     echo "Starting frontend..."

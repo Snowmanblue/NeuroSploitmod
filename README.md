@@ -64,10 +64,9 @@ Access the web interface at **http://localhost:3000**
 
 ```bash
 # Backend
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv backend/venv
+source backend/venv/bin/activate
+pip install -r backend/requirements.txt
 uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 # Frontend (new terminal)

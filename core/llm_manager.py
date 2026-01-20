@@ -147,6 +147,8 @@ class LLMManager:
                 raw_response = self._generate_gemini_cli(prompt, system_prompt)
             elif self.provider == 'lmstudio':
                 raw_response = self._generate_lmstudio(prompt, system_prompt)
+            elif self.provider == 'mistral':
+                raw_response = self._generate_mistral(prompt, system_prompt)
             else:
                 raise ValueError(f"Unsupported provider: {self.provider}")
         except Exception as e:
@@ -776,5 +778,86 @@ Consider defense-in-depth and detection mechanisms.""")
         except Exception as e:
             logger.error(f"Error during {vulnerability_type} analysis: {e}")
             return {"error": str(e), "raw_response": response}
+
+    def _generate_mistral(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Generate using Mistral AI API with requests"""
+        if not self.api_key:
+            raise ValueError("MISTRAL_API_KEY not set. Please set the environment variable or configure in config.json")
+
+        url = "https://api.mistral.ai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        data = {
+            "model": self.model or "mistral-large-latest",
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens
+        }
+
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                logger.debug(f"Mistral API request attempt {attempt + 1}/{MAX_RETRIES}")
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=data,
+                    timeout=120
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result["choices"][0]["message"]["content"]
+
+                elif response.status_code == 401:
+                    logger.error("Mistral API authentication failed. Check your API key.")
+                    raise ValueError(f"Invalid API key: {response.text}")
+
+                elif response.status_code == 429:
+                    last_error = f"Rate limit: {response.text}"
+                    logger.warning(f"Mistral API rate limit hit (attempt {attempt + 1}/{MAX_RETRIES})")
+                    if attempt < MAX_RETRIES - 1:
+                        sleep_time = RETRY_DELAY * (RETRY_MULTIPLIER ** (attempt + 1))
+                        logger.info(f"Rate limited. Retrying in {sleep_time:.1f}s...")
+                        time.sleep(sleep_time)
+
+                elif response.status_code >= 500:
+                    last_error = f"Server error {response.status_code}: {response.text}"
+                    logger.warning(f"Mistral API server error (attempt {attempt + 1}/{MAX_RETRIES})")
+                    if attempt < MAX_RETRIES - 1:
+                        sleep_time = RETRY_DELAY * (RETRY_MULTIPLIER ** attempt)
+                        logger.info(f"Retrying in {sleep_time:.1f}s...")
+                        time.sleep(sleep_time)
+
+                else:
+                    logger.error(f"Mistral API error: {response.status_code} - {response.text}")
+                    raise ValueError(f"API error {response.status_code}: {response.text}")
+
+            except requests.exceptions.Timeout as e:
+                last_error = e
+                logger.warning(f"Mistral API timeout (attempt {attempt + 1}/{MAX_RETRIES})")
+                if attempt < MAX_RETRIES - 1:
+                    sleep_time = RETRY_DELAY * (RETRY_MULTIPLIER ** attempt)
+                    logger.info(f"Retrying in {sleep_time:.1f}s...")
+                    time.sleep(sleep_time)
+
+            except Exception as e:
+                last_error = e
+                logger.error(f"Mistral API request error: {e}")
+                if attempt < MAX_RETRIES - 1:
+                    sleep_time = RETRY_DELAY * (RETRY_MULTIPLIER ** attempt)
+                    time.sleep(sleep_time)
+
+        raise ConnectionError(f"Failed to connect to Mistral API after {MAX_RETRIES} attempts: {last_error}")
+
 
 

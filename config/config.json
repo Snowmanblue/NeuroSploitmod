@@ -1,7 +1,21 @@
 {
     "llm": {
-        "default_profile": "ollama_whiterabbit",
+        "default_profile": "mistral_default",
         "profiles": {
+            "mistral_default": {
+                "provider": "mistral",
+                "model": "mistral-large-latest",
+                "api_key": "${MISTRAL_API_KEY}",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "input_token_limit": 32000,
+                "output_token_limit": 4096,
+                "cache_enabled": false,
+                "search_context_level": "medium",
+                "pdf_support_enabled": false,
+                "guardrails_enabled": true,
+                "hallucination_mitigation_strategy": null
+            },
             "ollama_whiterabbit": {
                 "provider": "ollama",
                 "model": "lazarevtill/Llama-3-WhiteRabbitNeo-8B-v2.0:q4_0",

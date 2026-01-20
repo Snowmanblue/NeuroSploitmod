@@ -128,6 +128,7 @@ class LLMClient:
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.openai_key = os.getenv("OPENAI_API_KEY", "")
         self.google_key = os.getenv("GOOGLE_API_KEY", "")
+        self.mistral_key = os.getenv("MISTRAL_API_KEY", "")
         self.ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2")
         self.client = None
         self.provider = None
@@ -141,6 +142,8 @@ class LLMClient:
             self.openai_key = None
         if self.google_key in ["", "your-google-api-key"]:
             self.google_key = None
+        if self.mistral_key in ["", "your-mistral-api-key", "${MISTRAL_API_KEY}"]:
+            self.mistral_key = None
 
         # Try providers in order of preference
         self._initialize_provider()
@@ -169,7 +172,14 @@ class LLMClient:
                 self.error_message = f"OpenAI init error: {e}"
                 print(f"[LLM] OpenAI initialization failed: {e}")
 
-        # 3. Try Google Gemini
+        # 3. Try Mistral AI
+        if self.mistral_key:
+            self.client = "mistral"  # Uses HTTP requests
+            self.provider = "mistral"
+            print("[LLM] Mistral AI API initialized")
+            return
+
+        # 4. Try Google Gemini
         if self.google_key:
             self.client = "gemini"  # Placeholder - uses HTTP requests
             self.provider = "gemini"
@@ -239,7 +249,8 @@ class LLMClient:
             "openai_lib": OPENAI_AVAILABLE,
             "ollama_available": self._check_ollama(),
             "lmstudio_available": self._check_lmstudio(),
-            "has_google_key": bool(self.google_key)
+            "has_google_key": bool(self.google_key),
+            "has_mistral_key": bool(self.mistral_key)
         }
 
     async def test_connection(self) -> Tuple[bool, str]:
@@ -288,6 +299,9 @@ class LLMClient:
             elif self.provider == "gemini":
                 return await self._generate_gemini(prompt, system or default_system, max_tokens)
 
+            elif self.provider == "mistral":
+                return await self._generate_mistral(prompt, system or default_system, max_tokens)
+
             elif self.provider == "ollama":
                 return await self._generate_ollama(prompt, system or default_system)
 
@@ -320,6 +334,34 @@ class LLMClient:
                     raise LLMConnectionError(f"Gemini API error ({response.status}): {error_text}")
                 data = await response.json()
                 return data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+
+    async def _generate_mistral(self, prompt: str, system: str, max_tokens: int) -> str:
+        """Generate using Mistral AI API"""
+        import aiohttp
+
+        url = "https://api.mistral.ai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.mistral_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "mistral-large-latest",
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.7
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise LLMConnectionError(f"Mistral API error ({response.status}): {error_text}")
+                data = await response.json()
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
     async def _generate_ollama(self, prompt: str, system: str) -> str:
         """Generate using local Ollama"""
