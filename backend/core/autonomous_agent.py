@@ -435,10 +435,10 @@ class AutonomousAgent:
         ],
         "lfi": [
             "../../../etc/passwd", "....//....//....//etc/passwd",
-            "/etc/passwd", "..\\..\\..\\windows\\system32\\drivers\\etc\\hosts",
+            "/etc/passwd", r"..\\..\\..\\windows\\system32\\drivers\\etc\\hosts",
             "php://filter/convert.base64-encode/resource=index.php",
             "file:///etc/passwd", "/proc/self/environ",
-            "..%2f..%2f..%2fetc%2fpasswd", "....\/....\/....\/etc/passwd"
+            "..%2f..%2f..%2fetc%2fpasswd", r"....\/....\/....\/etc/passwd"
         ],
         "ssti": [
             "{{7*7}}", "${7*7}", "<%= 7*7 %>", "#{7*7}", "*{7*7}",
