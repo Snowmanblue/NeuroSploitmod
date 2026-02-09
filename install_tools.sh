@@ -477,9 +477,14 @@ update_path() {
         echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.zshrc 2>/dev/null || true
     fi
 
-    # Add Cargo bin to PATH
+    # Add Cargo bin to PATH (Bash)
     if ! grep -q '.cargo/bin' ~/.bashrc 2>/dev/null; then
         echo 'export PATH=$PATH:$HOME/.cargo/bin' >> ~/.bashrc
+    fi
+
+    # Add Cargo bin to PATH (Zsh)
+    if ! grep -q '.cargo/bin' ~/.zshrc 2>/dev/null; then
+        echo 'export PATH=$PATH:$HOME/.cargo/bin' >> ~/.zshrc 2>/dev/null || true
     fi
 
     # Source for current session
