@@ -549,24 +549,41 @@ class AutonomousAgent:
             # 1. Strip markdown code blocks
             clean_response = re.sub(r'```(?:json)?\s*(.*?)\s*```', r'\1', response, flags=re.DOTALL).strip()
             
-            # 2. Extract based on logic
-            match = None
-            if type_hint == "list":
-                match = re.search(r'\[.*?\]', clean_response, re.DOTALL)
-            else:
-                match = re.search(r'\{.*?\}', clean_response, re.DOTALL)
-                
-            json_str = match.group() if match else clean_response
-            
-            # 3. Parse with strict=False to allow control characters (newlines) in strings
-            return json.loads(json_str, strict=False)
+            # 2. Try parsing the whole cleaned string first
+            return json.loads(clean_response)
             
         except json.JSONDecodeError as e:
-            await self.log_llm("warning", f"JSON parse error from LLM: {str(e)}")
-            await self.log_llm("debug", f"Failed JSON content: {response[:500]}...")
+            # 3. Handle specific truncation/wrapping issues
+            try:
+                # Find last comma or closing bracket to repair truncation
+                last_comma = clean_response.rfind(',')
+                if last_comma > 0:
+                    truncated = clean_response[:last_comma] + ("]" if type_hint == "list" else "}")
+                    return json.loads(truncated)
+            except:
+                pass
+
+            # 4. Handle "chatty" wrapping (e.g., finding list inside text)
+            if type_hint == "list":
+                try:
+                    list_match = re.search(r'\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]', clean_response, re.DOTALL)
+                    if list_match:
+                        return json.loads(list_match.group())
+                except:
+                    pass
+            else:
+                try:
+                    obj_match = re.search(r'\{[\s\S]*\}', clean_response)
+                    if obj_match:
+                        return json.loads(obj_match.group())
+                except:
+                    pass
+
+            await self.log("warning", f"JSON parse error from LLM: {str(e)}")
+            await self.log("debug", f"Failed JSON content: {response[:500]}...")
             return default
         except Exception as e:
-            await self.log_llm("error", f"JSON extraction error: {str(e)}")
+            await self.log("error", f"JSON extraction error: {str(e)}")
             return default
 
     async def _process_custom_prompt(self, prompt: str):
@@ -1013,13 +1030,12 @@ Be creative and thorough - think like a real penetration tester."""
             )
 
             # Extract JSON from response
-            match = re.search(r'\{[\s\S]*\}', strategy_response)
-            if not match:
+            strategy = await self._extract_json(strategy_response, "obj")
+            
+            if not strategy:
                 await self.log("warning", "  AI did not return valid JSON strategy, using fallback")
                 await self._ai_test_fallback(user_prompt)
                 return
-
-            strategy = json.loads(match.group())
 
             vuln_type = strategy.get("vulnerability_type", user_prompt)
             cwe_id = strategy.get("cwe_id", "")
