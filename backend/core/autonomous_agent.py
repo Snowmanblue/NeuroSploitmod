@@ -541,6 +541,34 @@ class AutonomousAgent:
         if self.llm.is_available():
             await self._process_custom_prompt(prompt)
 
+    async def _extract_json(self, response: str, type_hint: str = "obj") -> Any:
+        """Robustly extract JSON from LLM response with logging"""
+        default = [] if type_hint == "list" else {}
+        
+        try:
+            # 1. Strip markdown code blocks
+            clean_response = re.sub(r'```(?:json)?\s*(.*?)\s*```', r'\1', response, flags=re.DOTALL).strip()
+            
+            # 2. Extract based on logic
+            match = None
+            if type_hint == "list":
+                match = re.search(r'\[.*?\]', clean_response, re.DOTALL)
+            else:
+                match = re.search(r'\{.*?\}', clean_response, re.DOTALL)
+                
+            json_str = match.group() if match else clean_response
+            
+            # 3. Parse with strict=False to allow control characters (newlines) in strings
+            return json.loads(json_str, strict=False)
+            
+        except json.JSONDecodeError as e:
+            await self.log_llm("warning", f"JSON parse error from LLM: {str(e)}")
+            await self.log_llm("debug", f"Failed JSON content: {response[:500]}...")
+            return default
+        except Exception as e:
+            await self.log_llm("error", f"JSON extraction error: {str(e)}")
+            return default
+
     async def _process_custom_prompt(self, prompt: str):
         """Process a custom user prompt with the LLM and execute requested tests"""
         await self.log_llm("info", f"[AI] Processing user prompt: {prompt}")
@@ -585,46 +613,41 @@ If the request is unclear or just informational, use action "info" and provide h
 
             await self.log_llm("info", f"[AI] Analyzing request...")
 
-            # Try to parse as JSON for structured actions
-            import json
-            try:
-                # Extract JSON from response
-                json_match = re.search(r'\{[\s\S]*\}', response)
-                if json_match:
-                    action_data = json.loads(json_match.group())
-                    action = action_data.get("action", "info")
-                    targets = action_data.get("targets", [])
-                    vuln_types = action_data.get("vuln_types", [])
-                    ai_response = action_data.get("response", response)
+            await self.log_llm("info", f"[AI] Analyzing request...")
 
-                    await self.log_llm("info", f"[AI RESPONSE] {ai_response}")
+            # Extract JSON using robust helper
+            action_data = await self._extract_json(response, "obj")
+            
+            if action_data:
+                action = action_data.get("action", "info")
+                targets = action_data.get("targets", [])
+                vuln_types = action_data.get("vuln_types", [])
+                ai_response = action_data.get("response", response)
 
-                    # Execute the requested action
-                    if action == "test_endpoint" and targets:
-                        await self.log_llm("info", f"[AI] Executing endpoint tests on {len(targets)} targets...")
-                        for target_url in targets[:5]:  # Limit to 5 targets
-                            await self._test_custom_endpoint(target_url, vuln_types or ["xss", "sqli"])
+                await self.log_llm("info", f"[AI RESPONSE] {ai_response}")
 
-                    elif action == "test_parameter" and targets:
-                        await self.log_llm("info", f"[AI] Testing parameters: {targets}")
-                        await self._test_custom_parameters(targets, vuln_types or ["xss", "sqli"])
+                # Execute the requested action
+                if action == "test_endpoint" and targets:
+                    await self.log_llm("info", f"[AI] Executing endpoint tests on {len(targets)} targets...")
+                    for target_url in targets[:5]:  # Limit to 5 targets
+                        await self._test_custom_endpoint(target_url, vuln_types or ["xss", "sqli"])
 
-                    elif action == "scan_for" and vuln_types:
-                        await self.log_llm("info", f"[AI] Scanning for: {vuln_types}")
-                        for vtype in vuln_types[:3]:  # Limit to 3 vuln types
-                            await self._scan_for_vuln_type(vtype)
+                elif action == "test_parameter" and targets:
+                    await self.log_llm("info", f"[AI] Testing parameters: {targets}")
+                    await self._test_custom_parameters(targets, vuln_types or ["xss", "sqli"])
 
-                    elif action == "analyze":
-                        await self.log_llm("info", f"[AI] Analysis complete - check response above")
+                elif action == "scan_for" and vuln_types:
+                    await self.log_llm("info", f"[AI] Scanning for: {vuln_types}")
+                    for vtype in vuln_types[:3]:  # Limit to 3 vuln types
+                        await self._scan_for_vuln_type(vtype)
 
-                    else:
-                        await self.log_llm("info", f"[AI] Informational response provided")
+                elif action == "analyze":
+                    await self.log_llm("info", f"[AI] Analysis complete - check response above")
+
                 else:
-                    # No structured JSON, just show the response
-                    await self.log_llm("info", f"[AI RESPONSE] {response[:1000]}")
-
-            except json.JSONDecodeError:
-                # If not valid JSON, just show the response
+                    await self.log_llm("info", f"[AI] Informational response provided")
+            else:
+                # No structured JSON, just show the response
                 await self.log_llm("info", f"[AI RESPONSE] {response[:1000]}")
 
         except Exception as e:
@@ -2111,9 +2134,9 @@ API Endpoints: {self.recon.api_endpoints[:5] if self.recon.api_endpoints else 'N
         try:
             response = await self.llm.generate(prompt,
                 "You are an experienced penetration tester planning an assessment. Prioritize based on real-world attack patterns and the specific technologies detected. Be specific and actionable.")
-            match = re.search(r'\{.*\}', response, re.DOTALL)
-            if match:
-                return json.loads(match.group())
+            
+            return await self._extract_json(response, "obj") or self._default_attack_plan()
+
         except Exception as e:
             await self.log("debug", f"AI analysis error: {e}")
 
@@ -2603,9 +2626,8 @@ Respond in JSON format:
         try:
             response = await self.llm.generate(prompt,
                 "You are a senior penetration tester writing findings for an enterprise client. Be thorough, accurate, and professional. The report will be reviewed by security teams and executives.")
-            match = re.search(r'\{.*\}', response, re.DOTALL)
-            if match:
-                return json.loads(match.group())
+            
+            return await self._extract_json(response, "obj")
         except Exception as e:
             await self.log("debug", f"AI enhance error: {e}")
 
@@ -2714,9 +2736,7 @@ Respond with your execution plan in JSON format:
 
         try:
             response = await self.llm.generate(plan_prompt, system)
-            match = re.search(r'\{.*\}', response, re.DOTALL)
-            if match:
-                return json.loads(match.group())
+            return await self._extract_json(response, "obj")
         except:
             pass
 
