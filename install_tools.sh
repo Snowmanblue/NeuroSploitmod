@@ -109,14 +109,19 @@ install_rust() {
 install_python_packages() {
     echo -e "${BLUE}[*] Installing Python packages...${NC}"
 
-    pip3 install --upgrade pip 2>/dev/null || pip install --upgrade pip
-
     # Core packages
-    pip3 install requests dnspython urllib3 anthropic openai google-generativeai 2>/dev/null || pip install requests dnspython urllib3 anthropic openai google-generativeai
+    PIP_ARGS=""
+    if pip3 install --help | grep -q 'break-system-packages'; then
+        PIP_ARGS="--break-system-packages"
+    fi
+
+    pip3 install --upgrade pip $PIP_ARGS 2>/dev/null || pip install --upgrade pip $PIP_ARGS
+
+    pip3 install requests dnspython urllib3 anthropic openai google-generativeai $PIP_ARGS 2>/dev/null || pip install requests dnspython urllib3 anthropic openai google-generativeai $PIP_ARGS
 
     # Security tools
-    pip3 install wafw00f 2>/dev/null || echo -e "${YELLOW}  [!] wafw00f installation failed, try: pip install wafw00f${NC}"
-    pip3 install paramspider 2>/dev/null || echo -e "${YELLOW}  [!] paramspider installation failed${NC}"
+    pip3 install wafw00f $PIP_ARGS 2>/dev/null || echo -e "${YELLOW}  [!] wafw00f installation failed, try: pip install wafw00f $PIP_ARGS ${NC}"
+    pip3 install paramspider $PIP_ARGS 2>/dev/null || echo -e "${YELLOW}  [!] paramspider installation failed${NC}"
 }
 
 # Install tool via Go
@@ -271,14 +276,14 @@ install_additional_tools() {
     # wafw00f
     if ! command_exists wafw00f; then
         echo -e "  ${YELLOW}[~]${NC} Installing wafw00f..."
-        pip3 install wafw00f 2>/dev/null || pip install wafw00f 2>/dev/null
+        pip3 install wafw00f $PIP_ARGS 2>/dev/null || pip install wafw00f $PIP_ARGS 2>/dev/null
     fi
     print_status "wafw00f"
 
     # paramspider
     if ! command_exists paramspider; then
         echo -e "  ${YELLOW}[~]${NC} Installing paramspider..."
-        pip3 install paramspider 2>/dev/null || {
+        pip3 install paramspider $PIP_ARGS 2>/dev/null || {
             git clone https://github.com/devanshbatham/ParamSpider.git /tmp/paramspider 2>/dev/null
             cd /tmp/paramspider && pip3 install . 2>/dev/null
             cd -
@@ -314,7 +319,7 @@ install_additional_tools() {
         elif [ "$OS" == "debian" ]; then
             sudo apt install -y sqlmap 2>/dev/null
         else
-            pip3 install sqlmap 2>/dev/null
+            pip3 install sqlmap $PIP_ARGS 2>/dev/null
         fi
     fi
     print_status "sqlmap"
@@ -346,7 +351,7 @@ install_additional_tools() {
     # dirsearch
     if ! command_exists dirsearch; then
         echo -e "  ${YELLOW}[~]${NC} Installing dirsearch..."
-        pip3 install dirsearch 2>/dev/null || {
+        pip3 install dirsearch $PIP_ARGS 2>/dev/null || {
             git clone https://github.com/maurosoria/dirsearch.git /opt/dirsearch 2>/dev/null
             sudo ln -sf /opt/dirsearch/dirsearch.py /usr/local/bin/dirsearch 2>/dev/null
         }
@@ -372,7 +377,7 @@ install_additional_tools() {
     # waymore
     if ! command_exists waymore; then
         echo -e "  ${YELLOW}[~]${NC} Installing waymore..."
-        pip3 install waymore 2>/dev/null || pip install waymore 2>/dev/null
+        pip3 install waymore $PIP_ARGS 2>/dev/null || pip install waymore $PIP_ARGS 2>/dev/null
     fi
     print_status "waymore"
 }
