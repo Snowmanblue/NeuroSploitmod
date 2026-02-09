@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+import shutil
+import sys
+import importlib.util
+import os
+from pathlib import Path
+
+# Colors for output
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
+def print_status(name, status, message=""):
+    if status == "OK":
+        print(f"[{GREEN}OK{RESET}] {name:<25} {message}")
+    elif status == "MISSING":
+        print(f"[{RED}MISSING{RESET}] {name:<25} {message}")
+    elif status == "WARNING":
+        print(f"[{YELLOW}WARNING{RESET}] {name:<25} {message}")
+
+def check_command(cmd):
+    """Check if a command exists in the system PATH"""
+    path = shutil.which(cmd)
+    if path:
+        return "OK", path
+    return "MISSING", "Not found in PATH"
+
+def check_python_package(package):
+    """Check if a Python package is installed"""
+    spec = importlib.util.find_spec(package)
+    if spec is not None:
+        return "OK", ""
+    return "MISSING", "Run: pip install " + package
+
+def check_env_var(var):
+    """Check if an environment variable is set"""
+    val = os.getenv(var)
+    if val and val.strip():
+        if val in ["your-key-here", "your-mistral-api-key"]:
+            return "WARNING", "Set to placeholder value"
+        return "OK", "Configured"
+    return "WARNING", "Not set (some features may fail)"
+
+def main():
+    print(f"\n{CYAN}NeuroSploit Tool Verification Script{RESET}")
+    print("=" * 50)
+
+    # 1. System Tools
+    print(f"\n{CYAN}[+] Checking System Tools{RESET}")
+    sys_tools = ["git", "curl", "wget", "jq", "nmap", "go", "cargo"]
+    for tool in sys_tools:
+        status, msg = check_command(tool)
+        print_status(tool, status, msg)
+
+    # 2. Python Dependencies
+    print(f"\n{CYAN}[+] Checking Python Libraries{RESET}")
+    py_packages = [
+        "requests", "dnspython", "urllib3", 
+        "anthropic", "openai", "google.generativeai",
+        "wafw00f", "paramspider"
+    ]
+    for pkg in py_packages:
+        # module name might differ from package name
+        module = pkg
+        if pkg == "donspython": module = "dns"
+        if pkg == "google.generativeai": module = "google.generativeai"
+        
+        status, msg = check_python_package(module)
+        print_status(pkg, status, msg)
+
+    # 3. Security Tools (Go/Rust/Others)
+    print(f"\n{CYAN}[+] Checking Security Tools{RESET}")
+    sec_tools = [
+        # Network/Port
+        "nmap", "rustscan", "naabu", "masscan",
+        # Subdomains
+        "subfinder", "amass", "assetfinder", "findomain", "puredns",
+        # Web
+        "httpx", "nuclei", "nikto", "whatweb", "wafw00f",
+        "sqlmap", "wpscan", "feroxbuster", "gobuster", "ffuf",
+        "dirsearch", "gau", "waybackurls", "katana", "paramspider"
+    ]
+    
+    missing_tools = []
+    for tool in sec_tools:
+        status, msg = check_command(tool)
+        print_status(tool, status, msg)
+        if status == "MISSING":
+            missing_tools.append(tool)
+
+    # 4. Environment Variables
+    print(f"\n{CYAN}[+] Checking Configuration (.env){RESET}")
+    
+    # Try to load .env manually if python-dotenv not installed
+    env_path = Path(".env")
+    if env_path.exists():
+        print_status(".env file", "OK", "Found")
+        # Simple parser
+        with open(env_path, "r") as f:
+            for line in f:
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.strip().split("=", 1)
+                    os.environ[k] = v
+    else:
+        print_status(".env file", "MISSING", "Copy .env.example to .env")
+
+    api_keys = [
+        "MISTRAL_API_KEY", 
+        "OPENAI_API_KEY", 
+        "ANTHROPIC_API_KEY", 
+        "GOOGLE_API_KEY"
+    ]
+    for key in api_keys:
+        status, msg = check_env_var(key)
+        print_status(key, status, msg)
+
+    # Summary
+    print("\n" + "=" * 50)
+    if missing_tools:
+        print(f"{YELLOW}Warning: {len(missing_tools)} tools are missing.{RESET}")
+        print("Run usage tests to see if these are critical for your workflow.")
+        print("To install missing tools, run: ./install_tools.sh")
+    else:
+        print(f"{GREEN}All checked tools are installed!{RESET}")
+    print("=" * 50 + "\n")
+
+if __name__ == "__main__":
+    main()
