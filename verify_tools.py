@@ -21,10 +21,25 @@ def print_status(name, status, message=""):
         print(f"[{YELLOW}WARNING{RESET}] {name:<25} {message}")
 
 def check_command(cmd):
-    """Check if a command exists in the system PATH"""
+    """Check if a command exists in the system PATH or common user bin dirs"""
+    # 1. Check PATH
     path = shutil.which(cmd)
     if path:
         return "OK", path
+
+    # 2. Check common user bin dirs
+    home = str(Path.home())
+    common_paths = [
+        os.path.join(home, "go", "bin", cmd),
+        os.path.join(home, ".cargo", "bin", cmd),
+        os.path.join(home, ".local", "bin", cmd),
+        os.path.join(home, "bin", cmd),
+        "/usr/local/go/bin/" + cmd
+    ]
+    for p in common_paths:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return "WARNING", f"Found at {p} (Not in PATH)"
+            
     return "MISSING", "Not found in PATH"
 
 def check_python_package(package):
@@ -67,7 +82,7 @@ def main():
     for pkg in py_packages:
         # module name might differ from package name
         module = pkg
-        if pkg == "donspython": module = "dns"
+        if pkg == "dnspython": module = "dns"
         if pkg == "google.generativeai": module = "google.generativeai"
         
         status, msg = check_python_package(module)
@@ -122,9 +137,10 @@ def main():
     # Summary
     print("\n" + "=" * 50)
     if missing_tools:
-        print(f"{YELLOW}Warning: {len(missing_tools)} tools are missing.{RESET}")
+        print(f"{YELLOW}Warning: {len(missing_tools)} tools are missing or not in PATH.{RESET}")
         print("Run usage tests to see if these are critical for your workflow.")
         print("To install missing tools, run: ./install_tools.sh")
+        print("If tools show as WARNING (Found at...), run: source ~/.bashrc")
     else:
         print(f"{GREEN}All checked tools are installed!{RESET}")
     print("=" * 50 + "\n")
