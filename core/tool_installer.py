@@ -13,6 +13,13 @@ from typing import Dict, List, Tuple
 logger = logging.getLogger(__name__)
 
 # Tool definitions with installation commands for different package managers
+PIP_FLAGS = ""
+try:
+    if "break-system-packages" in subprocess.check_output([sys.executable, "-m", "pip", "install", "--help"], text=True):
+        PIP_FLAGS = " --break-system-packages"
+except Exception:
+    pass
+
 PENTEST_TOOLS = {
     "nmap": {
         "description": "Network scanner and port mapper",
@@ -35,7 +42,7 @@ PENTEST_TOOLS = {
             "dnf": "sudo dnf install -y sqlmap",
             "brew": "brew install sqlmap",
             "pacman": "sudo pacman -S --noconfirm sqlmap",
-            "pip": "pip3 install sqlmap"
+            "pip": f"pip3 install sqlmap{PIP_FLAGS}"
         },
         "binary": "sqlmap"
     },
@@ -158,7 +165,7 @@ PENTEST_TOOLS = {
         "description": "Web path discovery tool",
         "check_cmd": "dirsearch --version",
         "install": {
-            "pip": "pip3 install dirsearch"
+            "pip": f"pip3 install dirsearch{PIP_FLAGS}"
         },
         "binary": "dirsearch"
     },
@@ -166,7 +173,7 @@ PENTEST_TOOLS = {
         "description": "Web Application Firewall detection",
         "check_cmd": "wafw00f -h",
         "install": {
-            "pip": "pip3 install wafw00f"
+            "pip": f"pip3 install wafw00f{PIP_FLAGS}"
         },
         "binary": "wafw00f"
     }
