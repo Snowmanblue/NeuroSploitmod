@@ -76,8 +76,12 @@ def main():
     print(f"\n{CYAN}[+] Checking Python Libraries{RESET}")
     py_packages = [
         "requests", "dnspython", "urllib3", 
-        "anthropic", "openai", "google.generativeai",
-        "wafw00f", "paramspider"
+        "anthropic",
+    "openai",
+    "google.generativeai",
+    "mistune",
+    "wafw00f", 
+    "paramspider"
     ]
     for pkg in py_packages:
         # module name might differ from package name

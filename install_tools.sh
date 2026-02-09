@@ -117,7 +117,7 @@ install_python_packages() {
 
     pip3 install --upgrade pip $PIP_ARGS 2>/dev/null || pip install --upgrade pip $PIP_ARGS
 
-    pip3 install requests dnspython urllib3 anthropic openai google-generativeai $PIP_ARGS 2>/dev/null || pip install requests dnspython urllib3 anthropic openai google-generativeai $PIP_ARGS
+    pip3 install requests dnspython urllib3 anthropic openai google-generativeai mistune $PIP_ARGS 2>/dev/null || pip install requests dnspython urllib3 anthropic openai google-generativeai mistune $PIP_ARGS
 
     # Security tools
     pip3 install wafw00f $PIP_ARGS 2>/dev/null || echo -e "${YELLOW}  [!] wafw00f installation failed, try: pip install wafw00f $PIP_ARGS ${NC}"
