@@ -112,7 +112,7 @@ install_python_packages() {
     pip3 install --upgrade pip 2>/dev/null || pip install --upgrade pip
 
     # Core packages
-    pip3 install requests dnspython urllib3 2>/dev/null || pip install requests dnspython urllib3
+    pip3 install requests dnspython urllib3 anthropic openai google-generativeai 2>/dev/null || pip install requests dnspython urllib3 anthropic openai google-generativeai
 
     # Security tools
     pip3 install wafw00f 2>/dev/null || echo -e "${YELLOW}  [!] wafw00f installation failed, try: pip install wafw00f${NC}"

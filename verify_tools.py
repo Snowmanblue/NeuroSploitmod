@@ -29,9 +29,12 @@ def check_command(cmd):
 
 def check_python_package(package):
     """Check if a Python package is installed"""
-    spec = importlib.util.find_spec(package)
-    if spec is not None:
-        return "OK", ""
+    try:
+        spec = importlib.util.find_spec(package)
+        if spec is not None:
+            return "OK", ""
+    except (ImportError, AttributeError, ValueError):
+        pass
     return "MISSING", "Run: pip install " + package
 
 def check_env_var(var):
