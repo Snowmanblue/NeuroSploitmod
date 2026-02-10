@@ -2638,40 +2638,38 @@ Content-Type: {response.get('content_type', 'text/html')}
    - What's the worst-case scenario?
    - Compliance implications (PCI-DSS, GDPR, etc.)
 
-5. **Proof of Concept:** Working Python script that:
-   - Uses the requests library
-   - Demonstrates the vulnerability
-   - Includes comments explaining each step
-
-6. **Remediation:** Specific, actionable steps:
-   - Code-level fixes (with examples)
-   - Framework/library recommendations
-   - Defense-in-depth measures
-
-7. **References:** Include links to:
-   - OWASP guidance
-   - CWE/CVE if applicable
-   - Vendor documentation
+7. **References:** 1-2 key links (OWASP/CWE).
 
 Respond in JSON format:
 {{
     "cvss_score": 8.5,
     "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
     "cwe_id": "CWE-89",
-    "description": "A SQL injection vulnerability...",
-    "impact": "An attacker could...",
-    "poc_code": "import requests\\n\\n# PoC for SQL Injection\\n...",
-    "remediation": "1. Use parameterized queries...\\n2. Implement input validation...",
-    "references": ["https://owasp.org/Top10/A03_2021-Injection/", "https://cwe.mitre.org/data/definitions/89.html"]
+    "description": "Short description of the vulnerability...",
+    "impact": "Brief impact statement...",
+    "poc_code": "Short Python snippet...",
+    "remediation": "Key remediation steps...",
+    "references": ["link1", "link2"]
 }}"""
 
-        try:
-            response = await self.llm.generate(prompt,
-                "You are a senior penetration tester writing findings for an enterprise client. Be thorough, accurate, and professional. The report will be reviewed by security teams and executives.")
-            
-            return await self._extract_json(response, "obj")
-        except Exception as e:
-            await self.log("debug", f"AI enhance error: {e}")
+        # Implement retry logic for enhancement
+        enhanced_data = None
+        for attempt in range(2):
+            try:
+                current_prompt = prompt
+                if attempt > 0:
+                    current_prompt += "\n\nPREVIOUS RESPONSE WAS TRUNCATED. RETURN A CONCISE JSON OBJECT. OMIT LONG DESCRIPTIONS AND CODE."
+
+                response = await self.llm.generate(current_prompt,
+                    "You are a senior penetration tester. Be concise and professional. Do not exceed token limits.")
+                
+                enhanced_data = await self._extract_json(response, "obj")
+                
+                if enhanced_data:
+                    return enhanced_data
+                    
+            except Exception as e:
+                await self.log("debug", f"AI enhance attempt {attempt+1} error: {e}")
 
         return {}
 
