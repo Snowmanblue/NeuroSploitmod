@@ -1030,25 +1030,39 @@ Respond in JSON format with:
     "analysis_tips": "What patterns or behaviors indicate this vulnerability"
 }}
 
-Generate at least 3-5 realistic test cases using the actual endpoints from the context.
-Be creative and thorough - think like a real penetration tester."""
+Generate 2-3 realistic test cases using the actual endpoints from the context.
+Be creative and thorough - think like a real penetration tester.
+IMPORTANT: Return ONLY the raw JSON object. Do NOT wrap in markdown code blocks. Keep the response concise to avoid truncation."""
 
-        await self.log("info", "  Phase 1: AI generating test strategy...")
+        # Implement retry logic for strategy generation
+        strategy = None
+        for attempt in range(2):
+            try:
+                await self.log("info", f"  Phase 1: AI generating test strategy (Attempt {attempt+1})...")
+                current_prompt = strategy_prompt
+                if attempt > 0:
+                    current_prompt += "\n\nPREVIOUS RESPONSE WAS INVALID OR TRUNCATED. RETURN A SHORTER JSON OBJECT WITH FEWER TEST CASES."
+
+                strategy_response = await self.llm.generate(
+                    current_prompt,
+                    "You are an expert penetration tester. Provide valid JSON test strategies."
+                )
+
+                # Extract JSON from response
+                strategy = await self._extract_json(strategy_response, "obj")
+                
+                if strategy:
+                    break
+            except Exception as e:
+                await self.log("debug", f"Strategy generation attempt {attempt+1} failed: {e}")
+
+        if not strategy:
+            await self.log("warning", "  AI did not return valid JSON strategy after retries, using fallback")
+            await self._ai_test_fallback(user_prompt)
+            return
+
 
         try:
-            strategy_response = await self.llm.generate(
-                strategy_prompt,
-                "You are an expert penetration tester specializing in web application security. Provide detailed, actionable test strategies."
-            )
-
-            # Extract JSON from response
-            strategy = await self._extract_json(strategy_response, "obj")
-            
-            if not strategy:
-                await self.log("warning", "  AI did not return valid JSON strategy, using fallback")
-                await self._ai_test_fallback(user_prompt)
-                return
-
             vuln_type = strategy.get("vulnerability_type", user_prompt)
             cwe_id = strategy.get("cwe_id", "")
             severity = strategy.get("severity_if_found", "medium")
