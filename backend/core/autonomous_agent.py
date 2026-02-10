@@ -546,11 +546,14 @@ class AutonomousAgent:
         default = [] if type_hint == "list" else {}
         
         try:
-            # 1. Strip markdown code blocks
-            clean_response = re.sub(r'```(?:json)?\s*(.*?)\s*```', r'\1', response, flags=re.DOTALL).strip()
+            # 1. Strip markdown code blocks (handle missing closing tags)
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                clean_response = re.sub(r"^```(?:json)?\s*", "", clean_response)
+                clean_response = re.sub(r"\s*```$", "", clean_response)
             
             # 2. Try parsing the whole cleaned string first
-            return json.loads(clean_response)
+            return json.loads(clean_response, strict=False)
             
         except json.JSONDecodeError as e:
             # 3. Handle specific truncation/wrapping issues
@@ -559,11 +562,20 @@ class AutonomousAgent:
                 last_comma = clean_response.rfind(',')
                 if last_comma > 0:
                     truncated = clean_response[:last_comma] + ("]" if type_hint == "list" else "}")
-                    return json.loads(truncated)
+                    return json.loads(truncated, strict=False)
+            except:
+                pass
+            
+            # 4. Handle invalid control characters (e.g. unescaped newlines)
+            try:
+                # Filter out control characters except valid whitespace
+                sanitized = "".join(c if ord(c) >= 32 or c in "\n\r\t" else "" for c in clean_response)
+                if sanitized != clean_response:
+                    return json.loads(sanitized, strict=False)
             except:
                 pass
 
-            # 4. Handle "chatty" wrapping (e.g., finding list inside text)
+            # 5. Handle "chatty" wrapping (e.g., finding list inside text)
             if type_hint == "list":
                 try:
                     list_match = re.search(r'\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]', clean_response, re.DOTALL)
